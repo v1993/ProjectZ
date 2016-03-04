@@ -1,8 +1,92 @@
-local name = instead_savepath() .. '/world';
-local name_tmp = name..'.tmp'
-local name_tmp2 = name..'.tmp2'
+local name = (instead_savepath() .. '/world');
+local name_tmp = (name..'.tmp')
+local name_tmp2 = (name..'.tmp2')
+active_size = 100
+table.contains = function(tab, val, isarg)
+	if isarg then
+		for i=1, tab.n do
+			if tab[i] == val then
+				return true, i
+			end;
+		end;
+	else
+		for i in pairs(tab) do
+			if tab[i] == val then
+				return true, i
+			end;
+		end;
+	end;
+	return false
+end;
 saver = obj {
 	nam = 'saver';
+	cache = {};
+	cache_clear = function(s)
+		s.cache = {};
+	end;
+	cache_write = function(s, room, x, y, z)
+		if s.cache[x] == nil then
+			s.cache[x] = {}
+		end
+		if s.cache[x][y] == nil then
+			s.cache[x][y] = {}
+		end
+		s.cache[x][y][z] = room
+	end;
+	write_sync = function(s, room, x, y, z)
+		s:cache_write(room, x, y, z);
+		s:save_room(x, y, z, room)
+	end;
+	cache_read = function(s, x, y, z)
+		return s.cache[x][y][z]
+	end;
+	read_sync = function(s, x, y, z)
+		if not s:cache_exist(x, y, z) then
+			s:cache_write(s:read({x, y, z}))
+		end;
+	end;
+	cache_need = function(s, x, y, z, xl, yl, zl)
+		return (math.abs(x-xl) <= active_size) and (math.abs(y-yl) <= active_size) and (math.abs(z-zl) <= active_size)
+	end;
+	cache_exist = function(s, x, y, z)
+		return not (s:cache_read(x, y, z))
+	end;
+	load = function(s, ...)
+		local tabs = {s:read(...)}
+	end;
+	read = function(s, ...)
+--		xt, yt, zt = tostring(x), tostring(y), tostring(z)
+		local hr = stead.io.open(name, "r");
+		local tables={};
+		local curtext='';
+		local readernum = 1;
+		local copy=false;
+		local tab = {...};
+		openers = {};
+		closers = {};
+		for n,i in pairs(arg) do
+			tables[i]=false; --ТУТ: хак для stead.unpack
+			table.insert(openers, i, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
+			table.insert(closers, i, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
+		end;
+		for line in hr:lines() do
+			local openif, opennum = table.contains(openers, line);
+			local closeif, closenum = table.contains(openers, line);
+			if openif then
+				readernum=opennum;
+				copy=true;
+			elseif closeif then
+				copy = 'false';
+				tables[readernum]=curltext;
+				curltext = ''
+			end;
+			if copy == true then
+				curltext = (curltext..line..'\n');
+			end;
+		end;
+		hr:close();
+		return stead.unpack(tables)
+	end;
 	del = function(s, x, y, z)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
 		stead.os.rename(name, name_tmp2);
@@ -28,18 +112,26 @@ saver = obj {
 		stead.os.rename(name_tmp, name);
 	end;
 	save_room = function(s, x, y, z, room)
+		
 		if s:exist(x, y, z) then
 			s:del(x, y, z)
 		end;
 		local h = io.open(name, 'w')
 		h:write(string.format('-- <room %s.%s.%s', x, y, z), '\n');
-		s:savemembers(h, room, 'saver.roomtmp');
+		stead.savemembers(h, room, string.format('saver.cache[%s][%s][%s]', x, y, z, true);
 		h:write(string.format('-- room %s.%s.%s>', x, y, z), '\n');
 		h:flush();
 		h:close();
 	end;
+	get = function(s, x, y, z)
+		if s:cache_exist(x, y, z) then
+			return s:cache_read(x, y, z)
+		end;
+	end;
 	save = function(s)
-		s:save_room(x, y, z, actor_room); --FIXME: не так!
+		if here().place then
+			s:save_room(x, y, z, here());
+		end;
 	end;
 	var_in_save = function(s, v, n, need)
 		local r,f
@@ -113,38 +205,39 @@ saver = obj {
 		end
 		return (tostring(v))
 	end;
-	savemembers = function(s, h, self, name)
-		local need = true
-		local neednam = true
-		local k,v
-		if isObject(self) and need then
-			h:write(string.format('%s = obj { nam = %s };', name, s:var_in_save(self, 'nam', true)), '\n')
-			neednam = false;
-		end;
-		for k,v in stead.pairs(self) do
-			if k ~= "__visited__" then
-				local varnam;
-				if stead.type(k) == 'string' then
-					varnam = (stead.string.format("%q",k));
-				elseif stead.type(k) == 'number' then
-					varnam = (k)
-				elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
-					varnam = (k.key_name)
-				end
-				if varnam == 'nam' or not neednam then
-					return
-				end;
-				if stead.type(k) == 'string' then
-					stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need);
-				elseif stead.type(k) == 'number' then
-					stead.savevar(h, v, name.."["..k.."]", need)
-				elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
-					stead.savevar(h, v, name.."["..k.key_name.."]", need)
-				end
+};
+
+savemembers = function(s, h, self, name)
+	local need = true
+	local neednam = true
+	local k,v
+	if isObject(self) and need then
+		h:write(string.format('%s = obj { nam = %s };', name, s:var_in_save(self, 'nam', true)), '\n')
+		neednam = false;
+	end;
+	for k,v in stead.pairs(self) do
+		if k ~= "__visited__" then
+			local varnam;
+			if stead.type(k) == 'string' then
+				varnam = (stead.string.format("%q",k));
+			elseif stead.type(k) == 'number' then
+				varnam = (k)
+			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
+				varnam = (k.key_name)
+			end
+			if varnam == 'nam' or not neednam then
+				return
+			end;
+			if stead.type(k) == 'string' then
+				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need);
+			elseif stead.type(k) == 'number' then
+				stead.savevar(h, v, name.."["..k.."]", need)
+			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
+				stead.savevar(h, v, name.."["..k.key_name.."]", need)
 			end
 		end
 	end
-};
+end
 
 stead.savevar = function(h, v, n, need)
 	local r,f
