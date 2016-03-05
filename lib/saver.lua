@@ -42,8 +42,9 @@ saver = obj {
 	end;
 	read_sync = function(s, x, y, z)
 		if not s:cache_exist(x, y, z) then
-			s:cache_write(s:read({x, y, z}))
+			s:load({x, y, z})
 		end;
+		return s:cache_read(x, y, z)
 	end;
 	cache_need = function(s, x, y, z, xl, yl, zl)
 		return (math.abs(x-xl) <= active_size) and (math.abs(y-yl) <= active_size) and (math.abs(z-zl) <= active_size)
@@ -53,6 +54,10 @@ saver = obj {
 	end;
 	load = function(s, ...)
 		local tabs = {s:read(...)}
+		for i,tfunc in tabs do
+			local func = stead.eval(tfunc);
+			func()
+		end;
 	end;
 	read = function(s, ...)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
@@ -65,18 +70,21 @@ saver = obj {
 		openers = {};
 		closers = {};
 		for n,i in pairs(arg) do
-			tables[i]=false; --ТУТ: хак для stead.unpack
+			tables[i]=''; --ТУТ: хак для stead.unpack
 			table.insert(openers, i, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
 			table.insert(closers, i, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
 		end;
 		for line in hr:lines() do
 			local openif, opennum = table.contains(openers, line);
 			local closeif, closenum = table.contains(openers, line);
+			if copy == 'next' then
+				copy = true;
+			end;
 			if openif then
 				readernum=opennum;
-				copy=true;
+				copy='next';
 			elseif closeif then
-				copy = 'false';
+				copy = false;
 				tables[readernum]=curltext;
 				curltext = ''
 			end;
@@ -118,7 +126,7 @@ saver = obj {
 		end;
 		local h = io.open(name, 'w')
 		h:write(string.format('-- <room %s.%s.%s', x, y, z), '\n');
-		stead.savemembers(h, room, string.format('saver.cache[%s][%s][%s]', x, y, z, true);
+		stead.savemembers(h, room, string.format('saver.cache[%s][%s][%s]', x, y, z), true);
 		h:write(string.format('-- room %s.%s.%s>', x, y, z), '\n');
 		h:flush();
 		h:close();
