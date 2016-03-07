@@ -20,10 +20,6 @@ stead.room_save = function(self, name, h, need)
 	stead.savemembers(h, self, name, need);
 end
 
-star = function()
-	print 'Init ended!!!'
-end;
-
 start_game = function()
 	x = start.x;
 	y = start.y;
@@ -62,6 +58,6 @@ testgen.new = function(s, x, y, z)
 	v.nam = ('Комната:'..tostring(x)..'.'..tostring(y)..'.'..tostring(z));
 	v.dsc = 'test room';
 	v.key_name = ('world['..tostring(x)..']['..tostring(y)..']['..tostring(z)..']');
-	v.way = {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
+	v.way = {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
 	return room(v)
 end;
