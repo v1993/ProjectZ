@@ -1,7 +1,7 @@
 local name = (instead_savepath() .. '/world');
 local name_tmp = (name..'.tmp')
 local name_tmp2 = (name..'.tmp2')
-active_size = 100
+active_size = 4
 table.contains = function(tab, val, isarg)
 	if isarg then
 		for i=1, tab.n do
@@ -10,8 +10,8 @@ table.contains = function(tab, val, isarg)
 			end;
 		end;
 	else
-		for i in pairs(tab) do
-			if tab[i] == val then
+		for i,v in pairs(tab) do
+			if v == val then
 				return true, i
 			end;
 		end;
@@ -33,12 +33,64 @@ saver = obj {
 		end
 		s.cache[x][y][z] = room
 	end;
+	cache_sync = function(s)
+--		print('writing!');
+		local tab = {};
+		for x,v1 in pairs(s.cache) do
+			for y,v2 in pairs(v1) do
+				for z,v3 in pairs(v2) do
+					table.insert(tab, {x, y, z, v3})
+				end;
+			end;
+		end;
+--		print (#tab)
+		s:save_room(stead.unpack(tab));
+	end;
+	cache_fill = function(s)
+--		print('filling!');
+		local tab = {};
+		local iter = function()
+			local xl = x-active_size;
+			local yl = y-active_size;
+			local zl = z-active_size-1;
+			return function()
+				zl=zl+1;
+				if zl>z+active_size then
+					zl = z-active_size;
+					yl = yl+1
+					if yl>y+active_size then
+						xl=xl+1
+						yl = y-active_size;
+						if xl>x+active_size then
+							return nil
+						end;
+					end;
+				end;
+--				print (xl,yl,zl)
+				return xl, yl, zl
+			end;
+		end;
+		for xl, yl, zl in iter() do
+--			print (xl,yl,zl)
+			table.insert(tab, {xl, yl, zl})
+		end;
+--		print (#tab)
+		empty = s:load(tab);
+--		print (#empty)
+		for i,k in pairs(empty) do
+			if not s:cache_exist(k[1], k[2], k[3]) then
+--				print(k[1], k[2], k[3]);
+				s:cache_write (stead.ref(generator):new(k[1], k[2], k[3]), k[1], k[2], k[3])
+			end;
+		end;
+	end;
 	write_sync = function(s, room, x, y, z)
 		s:cache_write(room, x, y, z);
-		s:save_room(x, y, z, room)
+		s:save_room({x, y, z, room})
+		return room
 	end;
 	cache_read = function(s, x, y, z)
-		return s.cache[x][y][z]
+		return s.cache[x] and s.cache[x][y] and s.cache[x][y][z]
 	end;
 	read_sync = function(s, x, y, z)
 		if not s:cache_exist(x, y, z) then
@@ -49,15 +101,42 @@ saver = obj {
 	cache_need = function(s, x, y, z, xl, yl, zl)
 		return (math.abs(x-xl) <= active_size) and (math.abs(y-yl) <= active_size) and (math.abs(z-zl) <= active_size)
 	end;
+	exsist = function(s, ...)
+		local tab = {...};
+		local hr = stead.io.open(name, "r");
+		local tables = {};
+		openers = {};
+		for n,i in pairs(tab) do
+			tables[n]=false; --ТУТ: хак для stead.unpack
+			table.insert(openers, n, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
+		end;
+		if hr == nil then
+			return stead.unpack(tables)
+		end;
+		for line in hr:lines() do
+			local openif, opennum = table.contains(openers, line);
+			if openif then
+				tables[opennum]=true;
+			end
+		end;
+		hr:close();
+		return stead.unpack(tables)
+	end;
 	cache_exist = function(s, x, y, z)
-		return not (s:cache_read(x, y, z))
+		return not not (s:cache_read(x, y, z))
 	end;
 	load = function(s, ...)
-		local tabs = {s:read(...)}
-		for i,tfunc in tabs do
+		local inp = {...};
+		local tabs = {s:read(...)};
+		local empty = {};
+		for i,tfunc in pairs(tabs) do
 			local func = stead.eval(tfunc);
 			func()
+			if tfunc == '' then
+				table.insert(empty, inp[i])
+			end;
 		end;
+		return stead.unpack (empty)
 	end;
 	read = function(s, ...)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
@@ -69,10 +148,13 @@ saver = obj {
 		local tab = {...};
 		openers = {};
 		closers = {};
-		for n,i in pairs(arg) do
-			tables[i]=''; --ТУТ: хак для stead.unpack
-			table.insert(openers, i, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
-			table.insert(closers, i, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
+		for n,i in pairs(tab) do
+			tables[n]=''; --ТУТ: хак для stead.unpack
+			table.insert(openers, n, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
+			table.insert(closers, n, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
+		end;
+		if hr == nil then
+			return stead.unpack(tables)
 		end;
 		for line in hr:lines() do
 			local openif, opennum = table.contains(openers, line);
@@ -85,61 +167,94 @@ saver = obj {
 				copy='next';
 			elseif closeif then
 				copy = false;
-				tables[readernum]=curltext;
-				curltext = ''
+				tables[readernum]=curtext;
+				curtext = ''
 			end;
 			if copy == true then
-				curltext = (curltext..line..'\n');
+				curtext = (curtext..line..'\n');
 			end;
 		end;
 		hr:close();
 		return stead.unpack(tables)
 	end;
-	del = function(s, x, y, z)
+	del = function(s, ...)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
 		stead.os.rename(name, name_tmp2);
 		local hr = stead.io.open(name_tmp2, "r");
 		local hw = stead.io.open(name_tmp, "w");
+		local tab = {...};
 		local copy = true;
+		openers = {};
+		closers = {};
+		for n,i in pairs(tab) do
+			table.insert(openers, n, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
+			table.insert(closers, n, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
+		end;
 		for line in hr:lines() do
-			if line == string.format('-- <room %s.%s.%s', x, y, z) then
-				copy = false;
-			elseif line == string.format('-- room %s.%s.%s>', x, y, z) then
-				copy = 'wait';
-			elseif copy == 'wait' then
+			local openif, opennum = table.contains(openers, line);
+			local closeif, closenum = table.contains(openers, line);
+			if copy == 'next' then
 				copy = true;
+			end;
+			if openif then
+				copy=false;
+			elseif closeif then
+				copy = 'next';
 			end;
 			if copy == true then
 				hw:write(line, '\n');
 			end;
 		end;
+--				hw:write(line, '\n');
+
 		hw:flush();
 		hr:close();
 		hw:close();
 		stead.os.remove(name_tmp2);
 		stead.os.rename(name_tmp, name);
 	end;
-	save_room = function(s, x, y, z, room)
-		
-		if s:exist(x, y, z) then
-			s:del(x, y, z)
+	save_room = function(s, ...)
+		local tabs = {...};
+		local empty = {};
+--		print (#tabs);
+		for i,v in pairs({s:exsist(...)}) do
+--			print('save:', tabs[i][1], tabs[i][2], tabs[i][3])
+			if v then
+				table.insert(empty, {tabs[i][1], tabs[i][2], tabs[i][3]})
+			end;
 		end;
-		local h = io.open(name, 'w')
-		h:write(string.format('-- <room %s.%s.%s', x, y, z), '\n');
-		stead.savemembers(h, room, string.format('saver.cache[%s][%s][%s]', x, y, z), true);
-		h:write(string.format('-- room %s.%s.%s>', x, y, z), '\n');
+--		print 'saving'
+		if #empty > 0 then
+--			print 'del';
+			s:del(stead.unpack(empty))
+		end;
+		local h = io.open(name, 'a')
+		for k,v in pairs (tabs) do
+			h:write(string.format('-- <room %s.%s.%s', v[1], v[2], v[3]), '\n');
+			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true);
+			h:write(string.format('-- room %s.%s.%s>', v[1], v[2], v[3]), '\n');
+		end;
 		h:flush();
 		h:close();
 	end;
 	get = function(s, x, y, z)
-		if s:cache_exist(x, y, z) then
-			return s:cache_read(x, y, z)
+--		print 'get';
+		local reade = s:cache_read (x, y, z);
+		if reade ~= nil then
+			return reade;
 		end;
+--		print 'reloading';
+		s:cache_sync();
+--		print 'cache_sync OK';
+		s:cache_clear();
+--		print 'cache_clear OK';
+		s:cache_fill();
+--		print 'cache_fill OK';
+		return s:cache_read (x, y, z);
+		
 	end;
 	save = function(s)
-		if here().place then
-			s:save_room(x, y, z, here());
-		end;
+		s:cache_sync();
 	end;
 	var_in_save = function(s, v, n, need)
 		local r,f
@@ -154,7 +269,7 @@ saver = obj {
 				else
 					str=(str..stead.string.format("code %q", stead.functions[v].code))
 				end
-			elseif need then
+			elseif stead.type(v) == 'function' and need then
 				str=(str..string.format('stead.eval(%q)',  string.dump(v)));
 			end
 --		if need then
@@ -215,15 +330,16 @@ saver = obj {
 	end;
 };
 
-savemembers = function(s, h, self, name)
-	local need = true
+stead.savemembers = function(h, s, name, need)
+--	local need = true
 	local neednam = true
 	local k,v
-	if isObject(self) and need then
-		h:write(string.format('%s = obj { nam = %s };', name, s:var_in_save(self, 'nam', true)), '\n')
+	if isObject(s) and need then
+		h:write(string.format('%s = obj { nam = %s };', name, saver:var_in_save(s.nam, 'nam', true)), '\n')
 		neednam = false;
 	end;
-	for k,v in stead.pairs(self) do
+--	print (name);
+	for k,v in stead.pairs(s) do
 		if k ~= "__visited__" then
 			local varnam;
 			if stead.type(k) == 'string' then
@@ -233,7 +349,7 @@ savemembers = function(s, h, self, name)
 			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
 				varnam = (k.key_name)
 			end
-			if varnam == 'nam' or not neednam then
+			if varnam == 'nam' and not neednam then
 				return
 			end;
 			if stead.type(k) == 'string' then
@@ -249,7 +365,7 @@ end
 
 stead.savevar = function(h, v, n, need)
 	local r,f
-
+--	print(h,v,n,need);
 	if v == nil or stead.type(v) == "userdata" or
 			 stead.type(v) == "function" then
 		if isCode(v) and need then
@@ -260,6 +376,7 @@ stead.savevar = function(h, v, n, need)
 				h:write(stead.string.format("%s=code %q\n", n, stead.functions[v].code))
 			end
 		elseif stead.type(v) == "function" and need then
+--			print(n);
 			h:write(string.format('%s=stead.eval(%q)\n', n, string.dump(v)))
 		end
 --		if need then
@@ -331,10 +448,50 @@ world = setmetatable({}, {
 						return saver:get(xloc, yloc, zloc)
 					end;
 					__newindex = function(_, zloc, room)
-						return saver:save_room(xloc, yloc, zloc, room)
+						return saver:cache_write (room, xloc, yloc, zloc)
 					end;
 				})
 			end;
 		})
 	end;
 })
+stead.call = function(v, n, ...)
+	if stead.type(v) ~= 'table' then
+		error ("Call on non table object:"..stead.tostr(n), 2);
+	end
+	if v[n] == nil then
+		return nil,nil;
+	end
+	if stead.type(v[n]) == 'string' then
+		return v[n];
+	end
+	if stead.type(v[n]) == 'function' then
+		stead.callpush(v, ...)
+		local a,b = v[n](v, ...);
+		-- boolean, nil
+		if stead.type(a) == 'boolean' and b == nil then
+			b, a = a, stead.pget()
+			if a == nil then
+				if stead.cctx().action then
+					a = true
+				else
+					a = b
+					b = nil
+				end
+			end 
+		elseif a == nil and b == nil then
+			a = stead.pget()
+			b = nil
+		end
+		if a == nil and b == nil and stead.cctx().action then
+			a = true
+		end
+		stead.callpop()
+		return a,b
+	end
+	if stead.type(v[n]) == 'boolean' then
+		return v[n]
+	end
+	return nil
+end
+--print 'Code loaded!'
