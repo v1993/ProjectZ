@@ -1,7 +1,10 @@
-local name = (instead_savepath() .. '/world');
-local name_tmp = (name..'.tmp')
-local name_tmp2 = (name..'.tmp2')
+world_file_name = (instead_savepath() .. '/world/tmp/default');
+world_file_name_tmp = (name..'.tmp')
+world_file_name_tmp2 = (name..'.tmp2')
 active_size = 4
+change_world = function(world)
+	
+end;
 table.contains = function(tab, val, isarg)
 	if isarg then
 		for i=1, tab.n do
@@ -23,6 +26,13 @@ saver = obj {
 	cache = {};
 	cache_clear = function(s)
 		s.cache = {};
+	end;
+	ini = function()
+		if world_file_name == nil then
+			world_file_name = (instead_savepath() .. '/world/tmp/default');
+			world_file_name_tmp = (name..'.tmp')
+			world_file_name_tmp2 = (name..'.tmp2')
+		end;
 	end;
 	cache_write = function(s, room, x, y, z)
 		if s.cache[x] == nil then
@@ -103,7 +113,7 @@ saver = obj {
 	end;
 	exsist = function(s, ...)
 		local tab = {...};
-		local hr = stead.io.open(name, "r");
+		local hr = stead.io.open(world_file_name, "r");
 		local tables = {};
 		openers = {};
 		for n,i in pairs(tab) do
@@ -140,7 +150,7 @@ saver = obj {
 	end;
 	read = function(s, ...)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
-		local hr = stead.io.open(name, "r");
+		local hr = stead.io.open(world_file_name, "r");
 		local tables={};
 		local curtext='';
 		local readernum = 1;
@@ -179,9 +189,9 @@ saver = obj {
 	end;
 	del = function(s, ...)
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
-		stead.os.rename(name, name_tmp2);
-		local hr = stead.io.open(name_tmp2, "r");
-		local hw = stead.io.open(name_tmp, "w");
+		stead.os.rename(world_file_name, world_file_name_tmp2);
+		local hr = stead.io.open(world_file_name_tmp2, "r");
+		local hw = stead.io.open(world_file_name_tmp, "w");
 		local tab = {...};
 		local copy = true;
 		openers = {};
@@ -210,8 +220,8 @@ saver = obj {
 		hw:flush();
 		hr:close();
 		hw:close();
-		stead.os.remove(name_tmp2);
-		stead.os.rename(name_tmp, name);
+		stead.os.remove(world_file_name_tmp2);
+		stead.os.rename(world_file_name_tmp, world_file_name);
 	end;
 	save_room = function(s, ...)
 		local tabs = {...};
@@ -228,7 +238,7 @@ saver = obj {
 --			print 'del';
 			s:del(stead.unpack(empty))
 		end;
-		local h = io.open(name, 'a')
+		local h = io.open(world_file_name, 'a')
 		for k,v in pairs (tabs) do
 			h:write(string.format('-- <room %s.%s.%s', v[1], v[2], v[3]), '\n');
 			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true);

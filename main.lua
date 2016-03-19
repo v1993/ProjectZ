@@ -3,6 +3,7 @@
 -- $Author: Очинский Валерий$
 require 'lib/saver'
 require 'lib/actway'
+require 'lib/funclink'
 require 'timer'
 instead_version "2.3.0"
 start = {}
@@ -16,6 +17,11 @@ main = room {
 };
 
 stead.room_save = function(self, name, h, need)
+	local dsc;
+	stead.savemembers(h, self, name, need);
+end
+
+stead.obj_save = function(self, name, h, need)
 	local dsc;
 	stead.savemembers(h, self, name, need);
 end
@@ -46,6 +52,9 @@ start.z = 60
 
 testgen = obj {nam = 'testgen'};
 generator = 'testgen'
+testgen.way = function()
+	return {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
+end;
 testgen.new = function(s, x, y, z)
 	local v = {};
 	v.x=x;
@@ -58,6 +67,6 @@ testgen.new = function(s, x, y, z)
 	v.nam = ('Комната:'..tostring(x)..'.'..tostring(y)..'.'..tostring(z));
 	v.dsc = 'test room';
 	v.key_name = ('world['..tostring(x)..']['..tostring(y)..']['..tostring(z)..']');
-	v.way = {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
+	v.way = s.way();
 	return room(v)
 end;
