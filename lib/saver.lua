@@ -1,9 +1,14 @@
-world_file_name = (instead_savepath() .. '/world/tmp/default');
-world_file_name_tmp = (name..'.tmp')
-world_file_name_tmp2 = (name..'.tmp2')
+global {world_file_name = (instead_savepath() .. '/tmp_world_default')};
+global {world_file_name_tmp = (name..'.tmp')}
+global {world_file_name_tmp2 = (name..'.tmp2')}
 active_size = 4
 change_world = function(world)
-	
+	s:cache_sync();
+	s:cache_clear();
+	world_file_name = (instead_savepath() .. '/tmp_world_'..world);
+	world_file_name_tmp = (name..'.tmp');
+	world_file_name_tmp2 = (name..'.tmp2');
+	s:cache_fill();
 end;
 table.contains = function(tab, val, isarg)
 	if isarg then
@@ -26,13 +31,6 @@ saver = obj {
 	cache = {};
 	cache_clear = function(s)
 		s.cache = {};
-	end;
-	ini = function()
-		if world_file_name == nil then
-			world_file_name = (instead_savepath() .. '/world/tmp/default');
-			world_file_name_tmp = (name..'.tmp')
-			world_file_name_tmp2 = (name..'.tmp2')
-		end;
 	end;
 	cache_write = function(s, room, x, y, z)
 		if s.cache[x] == nil then
@@ -504,4 +502,97 @@ stead.call = function(v, n, ...)
 	end
 	return nil
 end
---print 'Code loaded!'
+-- Ну началось, модификация механизма сохранения/загрузки!
+
+-- copy_file -- угадай, что делает!
+
+copy_file = function(from, to)
+	local hfrom = io.open(from, 'rb');
+	if not hfrom then
+		return false
+	end;
+	local hto = io.open(to, 'wb');
+	if not hto then
+		return error('Can not open target file: '..to)
+	end;
+	hto:write(hfrom:read('*a'));
+	hto:flush();
+	hto:close();
+	hfrom:close();
+	return true
+end;
+
+listdir = function(dir)
+	local list = {};
+	for f in stead.readdir(dir) do
+		if f ~= '.' and f ~= '..' then
+			table.insert(list, f)
+		end
+	end
+	return list
+end;
+
+table.find = function(tab, regexp)
+	local otab = {};
+	for k,v in pairs(tab) do
+		if string.find(v, regexp) ~= nil then
+			table.insert(otab, v);
+		end;
+	end;
+	return stead.unpack(otab)
+end;
+
+stead.game_save = function(self, name, file) 
+	local h;
+	if file ~= nil then
+		file:write(stead.string.format("%s.pl = %q\n", name, stead.deref(self.pl)));
+		stead.savemembers(file, self, name, false);
+		return nil, true
+	end
+
+	if not isEnableSave() then
+		return nil, false
+	end
+
+	if name == nil then
+		return nil, false
+	end
+	h = stead.io.open(name,"wb");
+	if not h then
+		return nil, false
+	end
+	local n
+	if stead.type(stead.savename) == 'function' then
+		n = stead.savename()
+	end
+	if stead.type(n) == 'string' and n ~= "" then
+		h:write("-- $Name: "..n:gsub("\n","\\n").."$\n");
+	end
+	stead.do_savegame(self, h);
+	h:flush();
+	h:close();
+	game.autosave = false; -- we have only one try for autosave
+	game.restart_game = false
+	return nil;
+end
+game.save = stead.game_save
+stead.game_load = function(self, name)
+	if name == nil then
+		return nil, false
+	end
+	local f, err = loadfile(name);
+	if f then
+		local i,r = f();
+		if r then
+			return nil, false
+		end
+		i, r = stead.do_ini(self, true);
+		if not stead.started then
+			game:start()
+			stead.started = true
+		end
+		return i, r
+	end
+	return nil, false
+end
+game.load = stead.game_load

@@ -52,9 +52,7 @@ start.z = 60
 
 testgen = obj {nam = 'testgen'};
 generator = 'testgen'
-testgen.way = function()
-	return {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
-end;
+
 testgen.new = function(s, x, y, z)
 	local v = {};
 	v.x=x;
@@ -67,6 +65,6 @@ testgen.new = function(s, x, y, z)
 	v.nam = ('Комната:'..tostring(x)..'.'..tostring(y)..'.'..tostring(z));
 	v.dsc = 'test room';
 	v.key_name = ('world['..tostring(x)..']['..tostring(y)..']['..tostring(z)..']');
-	v.way = s.way();
+	v.way = {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
 	return room(v)
 end;
