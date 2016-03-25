@@ -1,6 +1,6 @@
 global {world_file_name = (instead_savepath() .. '/tmp_world_default')};
-global {world_file_name_tmp = (name..'.tmp')}
-global {world_file_name_tmp2 = (name..'.tmp2')}
+global {world_file_name_tmp = (world_file_name..'.tmp')}
+global {world_file_name_tmp2 = (world_file_name..'.tmp2')}
 active_size = 4
 change_world = function(world)
 	s:cache_sync();
@@ -48,6 +48,7 @@ saver = obj {
 			for y,v2 in pairs(v1) do
 				for z,v3 in pairs(v2) do
 					table.insert(tab, {x, y, z, v3})
+					stead.busy(true);
 				end;
 			end;
 		end;
@@ -75,6 +76,7 @@ saver = obj {
 					end;
 				end;
 --				print (xl,yl,zl)
+				stead.busy(true);
 				return xl, yl, zl
 			end;
 		end;
@@ -83,14 +85,18 @@ saver = obj {
 			table.insert(tab, {xl, yl, zl})
 		end;
 --		print (#tab)
+		stead.busy(true);
 		empty = s:load(tab);
+		stead.busy(true);
 --		print (#empty)
 		for i,k in pairs(empty) do
 			if not s:cache_exist(k[1], k[2], k[3]) then
 --				print(k[1], k[2], k[3]);
 				s:cache_write (stead.ref(generator):new(k[1], k[2], k[3]), k[1], k[2], k[3])
+				stead.busy(true);
 			end;
 		end;
+		stead.busy(true);
 	end;
 	write_sync = function(s, room, x, y, z)
 		s:cache_write(room, x, y, z);
@@ -147,6 +153,7 @@ saver = obj {
 		return stead.unpack (empty)
 	end;
 	read = function(s, ...)
+		stead.busy(true);
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
 		local hr = stead.io.open(world_file_name, "r");
 		local tables={};
@@ -181,11 +188,14 @@ saver = obj {
 			if copy == true then
 				curtext = (curtext..line..'\n');
 			end;
+			stead.busy(true);
 		end;
 		hr:close();
+		stead.busy(true);
 		return stead.unpack(tables)
 	end;
 	del = function(s, ...)
+		stead.busy(true);
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
 		stead.os.rename(world_file_name, world_file_name_tmp2);
 		local hr = stead.io.open(world_file_name_tmp2, "r");
@@ -197,6 +207,7 @@ saver = obj {
 		for n,i in pairs(tab) do
 			table.insert(openers, n, string.format('-- <room %s.%s.%s', i[1], i[2], i[3]))
 			table.insert(closers, n, string.format('-- room %s.%s.%s>', i[1], i[2], i[3]))
+			stead.busy(true);
 		end;
 		for line in hr:lines() do
 			local openif, opennum = table.contains(openers, line);
@@ -212,6 +223,7 @@ saver = obj {
 			if copy == true then
 				hw:write(line, '\n');
 			end;
+			stead.busy(true);
 		end;
 --				hw:write(line, '\n');
 
@@ -220,8 +232,10 @@ saver = obj {
 		hw:close();
 		stead.os.remove(world_file_name_tmp2);
 		stead.os.rename(world_file_name_tmp, world_file_name);
+		stead.busy(true);
 	end;
 	save_room = function(s, ...)
+		stead.busy(true);
 		local tabs = {...};
 		local empty = {};
 --		print (#tabs);
@@ -229,21 +243,25 @@ saver = obj {
 --			print('save:', tabs[i][1], tabs[i][2], tabs[i][3])
 			if v then
 				table.insert(empty, {tabs[i][1], tabs[i][2], tabs[i][3]})
+				stead.busy(true);
 			end;
 		end;
 --		print 'saving'
 		if #empty > 0 then
 --			print 'del';
 			s:del(stead.unpack(empty))
+			stead.busy(true);
 		end;
 		local h = io.open(world_file_name, 'a')
 		for k,v in pairs (tabs) do
 			h:write(string.format('-- <room %s.%s.%s', v[1], v[2], v[3]), '\n');
 			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true);
 			h:write(string.format('-- room %s.%s.%s>', v[1], v[2], v[3]), '\n');
+			stead.busy(true);
 		end;
 		h:flush();
 		h:close();
+		stead.busy(true);
 	end;
 	get = function(s, x, y, z)
 --		print 'get';
@@ -251,6 +269,7 @@ saver = obj {
 		if reade ~= nil then
 			return reade;
 		end;
+		stead.busy(true);
 --		print 'reloading';
 		s:cache_sync();
 --		print 'cache_sync OK';
@@ -258,6 +277,7 @@ saver = obj {
 --		print 'cache_clear OK';
 		s:cache_fill();
 --		print 'cache_fill OK';
+		stead.busy(false);
 		return s:cache_read (x, y, z);
 		
 	end;
@@ -507,15 +527,18 @@ end
 -- copy_file -- угадай, что делает!
 
 copy_file = function(from, to)
-	local hfrom = io.open(from, 'rb');
+	local hfrom = io.open(from, 'r');
 	if not hfrom then
 		return false
 	end;
-	local hto = io.open(to, 'wb');
+	local hto = io.open(to, 'w');
 	if not hto then
 		return error('Can not open target file: '..to)
 	end;
-	hto:write(hfrom:read('*a'));
+--	hto:write(hfrom:read('*a')); -- быстро, но жрёт память
+	for line in hfrom:lines() do
+		hto:write(line, '\n')
+	end;
 	hto:flush();
 	hto:close();
 	hfrom:close();
@@ -539,8 +562,36 @@ table.find = function(tab, regexp)
 			table.insert(otab, v);
 		end;
 	end;
-	return stead.unpack(otab)
+	return otab
 end;
+
+world_save = function(name)
+	source_files = table.find(listdir(instead_savepath()), 'tmp_world_');
+	target_files = {};
+	for k,filename in ipairs(source_files) do
+		table.insert(target_files, instead_savepath()..'/'..filename:gsub('tmp', ({string.match(name, "(.-)([^\\/]-%.?([^%.\\/]*))$")})[2]))
+		source_files[k]=(instead_savepath()..'/'..filename)
+	end;
+	for k,from in ipairs(source_files) do
+		local to = target_files[k]
+		copy_file(from, to)
+	end
+end;
+
+world_load  = function(name)
+	local prefix = ({string.match(name, "(.-)([^\\/]-%.?([^%.\\/]*))$")})[2];
+	
+	source_files = table.find(listdir(instead_savepath()), prefix..'_world_');
+	target_files = {};
+	for k,filename in ipairs(source_files) do
+		table.insert(target_files, instead_savepath()..'/'..filename:gsub(prefix, 'tmp'))
+		source_files[k]=(instead_savepath()..'/'..filename)
+	end;
+	for k,from in ipairs(source_files) do
+		local to = target_files[k]
+		copy_file(from, to)
+	end
+end
 
 stead.game_save = function(self, name, file) 
 	local h;
@@ -571,6 +622,9 @@ stead.game_save = function(self, name, file)
 	stead.do_savegame(self, h);
 	h:flush();
 	h:close();
+	if name ~= game then
+	world_save(name) -- Занимается копированием файлов
+	end;
 	game.autosave = false; -- we have only one try for autosave
 	game.restart_game = false
 	return nil;
@@ -580,6 +634,7 @@ stead.game_load = function(self, name)
 	if name == nil then
 		return nil, false
 	end
+	world_load(name);
 	local f, err = loadfile(name);
 	if f then
 		local i,r = f();
