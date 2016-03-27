@@ -1,6 +1,7 @@
 # ProjectZ
-#IIWG (aka ProjectZ) - Instead Infinite Worlds Generator (my project about infinite text worlds)
 Luac auto check: ![Build Status](https://travis-ci.org/v1993/ProjectZ.svg?branch=master)
+IIWG (aka ProjectZ) - Instead Infinite Worlds Generator (my project about infinite text worlds)
+
 
 It's my general instead project. My idea: let's create text minecraft!
 
