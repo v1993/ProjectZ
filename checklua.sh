@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-status = 0
+status=0
 
 for f in $(find . -name '*.lua')
 do
-	if luac $f -o ./luac.out
+	if luac -o ./luac.out "${f}"
 	then
 		rm ./luac.out
 	else
-		status = 1
+		status=1
 	fi
 done
 
