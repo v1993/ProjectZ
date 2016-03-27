@@ -1,0 +1,27 @@
+language: c
+
+sudo: false
+
+env:
+  matrix:
+    - LUA=lua5.1
+    - LUA=lua5.2
+    - LUA=lua5.3
+
+branches:
+  only:
+    - master
+
+before_install:
+  - source .travis/setenv_lua.sh
+
+install:
+  - echo 'Need INSTEAD to run, not installable.'
+
+script:
+  - ./checklua.sh
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
