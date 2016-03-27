@@ -1,5 +1,5 @@
+![Build Status](https://travis-ci.org/v1993/ProjectZ.svg?branch=master)
 # ProjectZ
-Luac auto check: ![Build Status](https://travis-ci.org/v1993/ProjectZ.svg?branch=master)
 IIWG (aka ProjectZ) - Instead Infinite Worlds Generator (my project about infinite text worlds)
 
 
