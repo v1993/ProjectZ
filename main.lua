@@ -80,5 +80,6 @@ testgen.new = function(s, x, y, z)
 	v.way = {actway('x+1', code [[x=x+1;syncwalk()]]),actway('x-1', code [[x=x-1;syncwalk()]]),actway('y+1', code [[y=y+1;syncwalk()]]),actway('y-1', code [[y=y-1;syncwalk()]]),actway('z+1', code [[z=z+1;syncwalk()]]),actway('z-1', code [[z=z-1;syncwalk()]])};
 	v = room(v)
 	put(new[[trigger()]], v)
+--	print(x,y,z)
 	return v
 end;
