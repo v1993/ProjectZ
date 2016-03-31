@@ -1,4 +1,4 @@
-![Build Status](https://travis-ci.org/v1993/ProjectZ.svg?branch=saver_fix)
+![Build Status](https://travis-ci.org/v1993/ProjectZ.svg?branch=master)
 # ProjectZ
 IIWG (aka ProjectZ) - Instead Infinite Worlds Generator (my project about infinite text worlds)
 
