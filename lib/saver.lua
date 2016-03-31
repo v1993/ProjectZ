@@ -1,6 +1,6 @@
-global {world_file_name = (instead_savepath() .. '/tmp_world_default')};
-global {world_file_name_tmp = (world_file_name..'.tmp')}
-global {world_file_name_tmp2 = (world_file_name..'.tmp2')}
+world_file_name = (instead_savepath() .. '/tmp_world_default');
+world_file_name_tmp = (world_file_name..'.tmp')
+world_file_name_tmp2 = (world_file_name..'.tmp2')
 active_size = 4
 change_world = function(world)
 	s:cache_sync();
@@ -10,6 +10,15 @@ change_world = function(world)
 	world_file_name_tmp2 = (name..'.tmp2');
 	s:cache_fill();
 end;
+
+stead.list_save = function(self, name, h, need)
+--	if self.__modifyed__ or self.__modified__ then -- compat
+		h:write(name.." = list({});\n");
+		need = true;
+--	end
+	stead.savemembers(h, self, name, need);
+end
+
 table.contains = function(tab, val, isarg)
 	if isarg then
 		for i=1, tab.n do
@@ -85,9 +94,11 @@ saver = obj {
 			table.insert(tab, {xl, yl, zl})
 		end;
 --		print (#tab)
+--		print 'Table gen OK, loading!'
 		stead.busy(true);
-		empty = s:load(tab);
+		empty = {s:load(stead.unpack(tab))};
 		stead.busy(true);
+--		print 'Load ok!'
 --		print (#empty)
 		for i,k in pairs(empty) do
 			if not s:cache_exist(k[1], k[2], k[3]) then
@@ -142,14 +153,18 @@ saver = obj {
 	load = function(s, ...)
 		local inp = {...};
 		local tabs = {s:read(...)};
+--		print(tabs);
 		local empty = {};
 		for i,tfunc in pairs(tabs) do
-			local func = stead.eval(tfunc);
-			func()
-			if tfunc == '' then
+			if tfunc == '' or tfunc == nil then
 				table.insert(empty, inp[i])
+			else
+--				print(tfunc)
+				local func = stead.eval(tfunc);
+				func()
 			end;
 		end;
+--		print(empty[1][1])
 		return stead.unpack (empty)
 	end;
 	read = function(s, ...)
@@ -171,9 +186,10 @@ saver = obj {
 		if hr == nil then
 			return stead.unpack(tables)
 		end;
+--		print 'Reading!'
 		for line in hr:lines() do
 			local openif, opennum = table.contains(openers, line);
-			local closeif, closenum = table.contains(openers, line);
+			local closeif, closenum = table.contains(closers, line);
 			if copy == 'next' then
 				copy = true;
 			end;
@@ -184,6 +200,7 @@ saver = obj {
 				copy = false;
 				tables[readernum]=curtext;
 				curtext = ''
+--				print('Table '..readernum..' read!')
 			end;
 			if copy == true then
 				curtext = (curtext..line..'\n');
@@ -255,6 +272,8 @@ saver = obj {
 		local h = io.open(world_file_name, 'a')
 		for k,v in pairs (tabs) do
 			h:write(string.format('-- <room %s.%s.%s', v[1], v[2], v[3]), '\n');
+			h:write(string.format('if saver.cache[%s] == nil then saver.cache[%s]={} end;', v[1], v[1]), '\n')
+			h:write(string.format('if saver.cache[%s][%s] == nil then saver.cache[%s][%s]={} end;', v[1], v[2], v[1], v[2]), '\n')
 			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true);
 			h:write(string.format('-- room %s.%s.%s>', v[1], v[2], v[3]), '\n');
 			stead.busy(true);
