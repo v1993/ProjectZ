@@ -45,6 +45,30 @@ saver = obj {
 	cache_clear = function(s)
 		s.cache = {};
 	end;
+	cache_iter_full = function(s)
+		local nextl = hook(next, function(f, ...)
+--			for k,l in pairs(...) do print(l) end;
+--			print('')
+--			print(...)
+			local index,result = f(..., ind)
+			ind = index;
+			if result ~= nil then
+--				print(result)
+				return stead.unpack(result)
+			end
+		end)
+		local ind;
+		local tabl = {}
+		for x,v1 in pairs(s.cache) do
+			for y,v2 in pairs(v1) do
+				for z,v3 in pairs(v2) do
+					table.insert(tabl, {x, y, z})
+				end;
+			end;
+		end;
+--		for k,l in pairs(tabl) do print(l) end;
+		return nextl, tabl
+	end;
 	cache_iter = function()
 		local xl = x-active_size;
 		local yl = y-active_size;
@@ -80,11 +104,17 @@ saver = obj {
 		end;
 	end;
 	cache_clear_unactual = function(s)
-		for xl, yl, zl in s:cache_iter() do
-			if not s:cache_need(xl, yl, zl, centre_x, centre_y, centre_z) and s.cache[xl] ~= nil and s.cache[xl][yl] then
+--		print('Clearing...')
+		for xl, yl, zl in s:cache_iter_full() do
+--			print(centre_x, centre_y, centre_z)
+--			print(not s:cache_need(xl, yl, zl, centre_x, centre_y, centre_z), xl, yl, zl)
+			if not s:cache_need(xl, yl, zl, centre_x, centre_y, centre_z) and s.cache[xl] ~= nil and s.cache[xl][yl] ~= nil then
+--				print('Clear '..tostring(xl)..' '..tostring(yl)..' '..tostring(zl))
 				s.cache[xl][yl][zl] = nil
 			end;
+			stead.busy (true)
 		end
+--		print '..OK!'
 	end;
 	cache_write = function(s, room, x, y, z)
 		if s.cache[x] == nil then
@@ -316,14 +346,14 @@ saver = obj {
 --		print 'reloading';
 		s:cache_sync();
 --		print 'cache_sync OK';
+		centre_x = x;
+		centre_y = y;
+		centre_z = z;
 		s:cache_clear_unactual();
 --		print 'cache_clear OK';
 		s:cache_fill();
 --		print 'cache_fill OK';
 		stead.busy(false);
-		centre_x = x;
-		centre_y = y;
-		centre_z = z;
 		return s:cache_read (x, y, z);
 		
 	end;
