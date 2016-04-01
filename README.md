@@ -7,4 +7,4 @@ It's my general instead project. My idea: let's create text minecraft!
 
 But why minecraft? It will be a very modular system, with Libs, Mods, etc... It's a core.
 
-Sorry, it's under devepopment now...
+Sorry, it's under devepopment now... Current version is slow, but it can work correctly!
