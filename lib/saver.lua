@@ -2,6 +2,10 @@ world_file_name = (instead_savepath() .. '/tmp_world_default');
 world_file_name_tmp = (world_file_name..'.tmp')
 world_file_name_tmp2 = (world_file_name..'.tmp2')
 active_size = 4
+centre_x = 0
+centre_y = 0
+centre_z = 0
+
 change_world = function(world)
 	s:cache_sync();
 	s:cache_clear();
@@ -41,6 +45,47 @@ saver = obj {
 	cache_clear = function(s)
 		s.cache = {};
 	end;
+	cache_iter = function()
+		local xl = x-active_size;
+		local yl = y-active_size;
+		local zl = z-active_size-1;
+		return function()
+			zl=zl+1;
+			if zl>z+active_size then
+				zl = z-active_size;
+				yl = yl+1
+				if yl>y+active_size then
+					xl=xl+1
+					yl = y-active_size;
+					if xl>x+active_size then
+						return nil
+					end;
+				end;
+			end;
+--			print (xl,yl,zl)
+			return xl, yl, zl
+		end;
+	end;
+	cache_iter_for_fill = function(s)
+		local main_iter = s:cache_iter();
+		return function()
+			while true do
+				local cur_iter = {main_iter()}
+				if cur_iter == nil then
+					return nil
+				elseif not s:cache_exist(cur_iter[1], cur_iter[2], cur_iter[3]) then
+					return stead.unpack(cur_iter)
+				end
+			end;
+		end;
+	end;
+	cache_clear_unactual = function(s)
+		for xl, yl, zl in s:cache_iter() do
+			if not s:cache_need(xl, yl, zl, centre_x, centre_y, centre_z) and s.cache[xl] ~= nil and s.cache[xl][yl] then
+				s.cache[xl][yl][zl] = nil
+			end;
+		end
+	end;
 	cache_write = function(s, room, x, y, z)
 		if s.cache[x] == nil then
 			s.cache[x] = {}
@@ -67,31 +112,10 @@ saver = obj {
 	cache_fill = function(s)
 --		print('filling!');
 		local tab = {};
-		local iter = function()
-			local xl = x-active_size;
-			local yl = y-active_size;
-			local zl = z-active_size-1;
-			return function()
-				zl=zl+1;
-				if zl>z+active_size then
-					zl = z-active_size;
-					yl = yl+1
-					if yl>y+active_size then
-						xl=xl+1
-						yl = y-active_size;
-						if xl>x+active_size then
-							return nil
-						end;
-					end;
-				end;
---				print (xl,yl,zl)
-				stead.busy(true);
-				return xl, yl, zl
-			end;
-		end;
-		for xl, yl, zl in iter() do
+		for xl, yl, zl in s:cache_iter_for_fill() do
 --			print (xl,yl,zl)
 			table.insert(tab, {xl, yl, zl})
+			stead.busy (true)
 		end;
 --		print (#tab)
 --		print 'Table gen OK, loading!'
@@ -292,11 +316,14 @@ saver = obj {
 --		print 'reloading';
 		s:cache_sync();
 --		print 'cache_sync OK';
-		s:cache_clear();
+		s:cache_clear_unactual();
 --		print 'cache_clear OK';
 		s:cache_fill();
 --		print 'cache_fill OK';
 		stead.busy(false);
+		centre_x = x;
+		centre_y = y;
+		centre_z = z;
 		return s:cache_read (x, y, z);
 		
 	end;
