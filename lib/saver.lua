@@ -1,6 +1,6 @@
-world_file_name = (instead_savepath() .. '/tmp_world_default');
-world_file_name_tmp = (world_file_name..'.tmp')
-world_file_name_tmp2 = (world_file_name..'.tmp2')
+global {world_file_name = (instead_savepath() .. '/tmp_world_default');
+world_file_name_tmp = (world_file_name..'.tmp');
+world_file_name_tmp2 = (world_file_name..'.tmp2')}
 active_size = 4
 centre_x = 0
 centre_y = 0
