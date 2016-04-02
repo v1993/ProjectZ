@@ -1,10 +1,18 @@
-global {world_file_name = (instead_savepath() .. '/tmp_world_default');
-world_file_name_tmp = (world_file_name..'.tmp');
-world_file_name_tmp2 = (world_file_name..'.tmp2')}
+global {world_file_name = (instead_savepath() .. '/tmp_world_default')};
+global {world_file_name_tmp = (world_file_name..'.tmp')};
+global {world_file_name_tmp2 = (world_file_name..'.tmp2')};
 active_size = 4
 centre_x = 0
 centre_y = 0
 centre_z = 0
+
+print_cachesize = function()
+	local size = 0;
+	for x,y,z in saver:cache_iter_full() do
+		size=size+1
+	end
+	print(size)
+end;
 
 change_world = function(world)
 	s:cache_sync();
@@ -125,14 +133,17 @@ saver = obj {
 		end
 		s.cache[x][y][z] = room
 	end;
-	cache_sync = function(s)
+	cache_sync = function(s, onlyunactual)
 --		print('writing!');
 		local tab = {};
 		for x,v1 in pairs(s.cache) do
 			for y,v2 in pairs(v1) do
 				for z,v3 in pairs(v2) do
-					table.insert(tab, {x, y, z, v3})
-					stead.busy(true);
+					if not onlyunactual or not s:cache_need(x, y, z, centre_x, centre_y, centre_z) then
+						print(x,y,z)
+						table.insert(tab, {x, y, z, v3})
+						stead.busy(true);
+					end;
 				end;
 			end;
 		end;
@@ -343,17 +354,25 @@ saver = obj {
 			return reade;
 		end;
 		stead.busy(true);
+		print_cachesize();
 --		print 'reloading';
-		s:cache_sync();
---		print 'cache_sync OK';
 		centre_x = x;
 		centre_y = y;
 		centre_z = z;
+		s:cache_sync(true);
+		stead.busy(true);
+--		print 'cache_sync OK';
 		s:cache_clear_unactual();
+		stead.busy(true);
 --		print 'cache_clear OK';
 		s:cache_fill();
+		stead.busy(true);
 --		print 'cache_fill OK';
+--		print('collecting')
+		collectgarbage('collect')
+--		print('OK')
 		stead.busy(false);
+		print_cachesize();
 		return s:cache_read (x, y, z);
 		
 	end;

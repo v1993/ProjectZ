@@ -28,9 +28,10 @@ trigger = function()
 	v.act = function(s)
 		s.trig = not s.trig;
 		return "Щёлк!"
-	end
+	end;
+	v = obj(v)
 	stead.add_var(v, {trig = false})
-	return obj(v)
+	return v
 end;
 
 stead.obj_save = function(self, name, h, need)
