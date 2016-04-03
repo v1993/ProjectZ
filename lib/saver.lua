@@ -140,7 +140,7 @@ saver = obj {
 			for y,v2 in pairs(v1) do
 				for z,v3 in pairs(v2) do
 					if not onlyunactual or not s:cache_need(x, y, z, centre_x, centre_y, centre_z) then
-						print(x,y,z)
+--						print(x,y,z)
 						table.insert(tab, {x, y, z, v3})
 						stead.busy(true);
 					end;
@@ -354,7 +354,7 @@ saver = obj {
 			return reade;
 		end;
 		stead.busy(true);
-		print_cachesize();
+--		print_cachesize();
 --		print 'reloading';
 		centre_x = x;
 		centre_y = y;
@@ -372,7 +372,7 @@ saver = obj {
 		collectgarbage('collect')
 --		print('OK')
 		stead.busy(false);
-		print_cachesize();
+--		print_cachesize();
 		return s:cache_read (x, y, z);
 		
 	end;
@@ -461,9 +461,14 @@ stead.savemembers = function(h, s, name, need)
 		h:write(string.format('%s = obj { nam = %s };', name, saver:var_in_save(s.nam, 'nam', true)), '\n')
 		neednam = false;
 	end;
+	
 --	print (name);
 	for k,v in stead.pairs(s) do
 		if k ~= "__visited__" then
+			local need2 = false
+			if isForSave(k, v, s) then
+				need2 = true;
+			end
 			local varnam;
 			if stead.type(k) == 'string' then
 				varnam = (stead.string.format("%q",k));
@@ -476,11 +481,11 @@ stead.savemembers = function(h, s, name, need)
 				return
 			end;
 			if stead.type(k) == 'string' then
-				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need);
+				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need or need2);
 			elseif stead.type(k) == 'number' then
-				stead.savevar(h, v, name.."["..k.."]", need)
+				stead.savevar(h, v, name.."["..k.."]", need or need2)
 			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
-				stead.savevar(h, v, name.."["..k.key_name.."]", need)
+				stead.savevar(h, v, name.."["..k.key_name.."]", need or need2)
 			end
 		end
 	end
@@ -488,6 +493,10 @@ end
 
 stead.savevar = function(h, v, n, need)
 	local r,f
+	
+--	if string.find(n,'trig') ~= nil then
+--		print('Saving')
+--	end;
 --	print(h,v,n,need);
 	if v == nil or stead.type(v) == "userdata" or
 			 stead.type(v) == "function" then
@@ -552,10 +561,17 @@ stead.savevar = function(h, v, n, need)
 		stead.savemembers(h, v, n, need);
 		return;
 	end
+--	if string.find(n, 'trig') ~= nil then
+--		print('Saving')
+--	end;
 
 	if not need then
 		return
 	end
+	
+--	if string.find(n, 'trig') ~= nil then
+--		print('Saving2')
+	end;
 	h:write(n, " = ",tostring(v))
 	h:write("\n") 
 end

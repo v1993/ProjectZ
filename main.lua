@@ -23,6 +23,7 @@ end
 
 trigger = function()
 	local v = {};
+	v.trigger = true;
 	v.nam = "Типа объект"
 	v.dsc = function(s) return ("{Что-то} тут есть. И оно "..tostring(s.trig)..'!') end
 	v.act = function(s)
