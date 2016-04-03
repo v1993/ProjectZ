@@ -571,7 +571,7 @@ stead.savevar = function(h, v, n, need)
 	
 --	if string.find(n, 'trig') ~= nil then
 --		print('Saving2')
-	end;
+--	end;
 	h:write(n, " = ",tostring(v))
 	h:write("\n") 
 end
