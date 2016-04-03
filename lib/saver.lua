@@ -635,6 +635,13 @@ stead.call = function(v, n, ...)
 end
 -- Ну началось, модификация механизма сохранения/загрузки!
 
+
+readiter = function(h, size)
+	return function()
+		return h:read(size) 
+		end;
+end;
+
 -- copy_file -- угадай, что делает!
 
 copy_file = function(from, to)
@@ -647,8 +654,9 @@ copy_file = function(from, to)
 		return error('Can not open target file: '..to)
 	end;
 --	hto:write(hfrom:read('*a')); -- быстро, но жрёт память
-	for line in hfrom:lines() do
-		hto:write(line, '\n')
+	for data in readiter(hfrom, 268435456) do -- читать блоками по 256МБ
+		hto:write(data)
+		collectgarbage('collect')
 	end;
 	hto:flush();
 	hto:close();
