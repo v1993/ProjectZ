@@ -2,6 +2,7 @@
 -- $Version: 0.1$
 -- $Author: Очинский Валерий$
 instead_version "2.3.0"
+require 'dbg'
 dofile 'lib/saver.lua'
 require 'lib/actway'
 require 'lib/funclink'
@@ -11,6 +12,15 @@ global {x = 0, y = 0, z = 0};
 --start_game = function()
 --	cron:start()
 --end;
+wayd = menu {
+	nam = 'Дамп путей в терминал';
+	menu = function(s)
+		for k,v in pairs(here().way) do
+			print(k,v)
+		end;
+	end;
+};
+
 main = room {
 	nam = 'Давай!';
 	obj = {obj {nam = 'ok', dsc = '{Начать игру!}', act = code [[return start_game()]]}};
@@ -72,10 +82,6 @@ testgen.new = function(s, x, y, z)
 	v.x=x;
 	v.y=y;
 	v.z=z;
-	v.save = function(self, name, h, need)
-		local dsc;
-		stead.savemembers(h, self, name, need);
-	end;
 	v.nam = ('Комната:'..tostring(x)..'.'..tostring(y)..'.'..tostring(z));
 	v.dsc = 'test room';
 	v.key_name = ('world['..tostring(x)..']['..tostring(y)..']['..tostring(z)..']');

@@ -54,62 +54,38 @@ saver = obj {
 		s.cache = {};
 	end;
 	cache_iter_full = function(s)
-		local nextl = hook(next, function(f, ...)
---			for k,l in pairs(...) do print(l) end;
---			print('')
---			print(...)
-			local index,result = f(..., ind)
-			ind = index;
-			if result ~= nil then
---				print(result)
-				return stead.unpack(result)
-			end
-		end)
-		local ind;
-		local tabl = {}
-		for x,v1 in pairs(s.cache) do
-			for y,v2 in pairs(v1) do
-				for z,v3 in pairs(v2) do
-					table.insert(tabl, {x, y, z})
-				end;
-			end;
-		end;
---		for k,l in pairs(tabl) do print(l) end;
-		return nextl, tabl
-	end;
-	cache_iter = function()
-		local xl = x-active_size;
-		local yl = y-active_size;
-		local zl = z-active_size-1;
-		return function()
-			zl=zl+1;
-			if zl>z+active_size then
-				zl = z-active_size;
-				yl = yl+1
-				if yl>y+active_size then
-					xl=xl+1
-					yl = y-active_size;
-					if xl>x+active_size then
-						return nil
+		local f = function()
+			for x,v1 in pairs(s.cache) do
+				for y,v2 in pairs(v1) do
+					for z,v3 in pairs(v2) do
+						coroutine.yield(x,y,z)
 					end;
 				end;
 			end;
---			print (xl,yl,zl)
-			return xl, yl, zl
 		end;
+		return coroutine.wrap(f)
+	end;
+	cache_iter = function()
+		local f = function()
+			for x=x-active_size,x+active_size do
+				for y=y-active_size,y+active_size do
+					for z=z-active_size,z+active_size do
+						coroutine.yield(x,y,z)
+					end
+				end
+			end
+		end;
+		return coroutine.wrap(f)
 	end;
 	cache_iter_for_fill = function(s)
-		local main_iter = s:cache_iter();
-		return function()
-			while true do
-				local cur_iter = {main_iter()}
-				if cur_iter == nil then
-					return nil
-				elseif not s:cache_exist(cur_iter[1], cur_iter[2], cur_iter[3]) then
-					return stead.unpack(cur_iter)
+		local f = function()
+			for xl,yl,zl in saver:cache_iter() do
+				if not s:cache_exist(xl, yl, zl) then
+					coroutine.yield(xl,yl,zl)
 				end
 			end;
 		end;
+		return coroutine.wrap(f)
 	end;
 	cache_clear_unactual = function(s)
 --		print('Clearing...')
@@ -136,15 +112,11 @@ saver = obj {
 	cache_sync = function(s, onlyunactual)
 --		print('writing!');
 		local tab = {};
-		for x,v1 in pairs(s.cache) do
-			for y,v2 in pairs(v1) do
-				for z,v3 in pairs(v2) do
-					if not onlyunactual or not s:cache_need(x, y, z, centre_x, centre_y, centre_z) then
---						print(x,y,z)
-						table.insert(tab, {x, y, z, v3})
-						stead.busy(true);
-					end;
-				end;
+		for x,y,z in s:cache_iter_full() do
+			if not onlyunactual or not s:cache_need(x, y, z, centre_x, centre_y, centre_z) then
+--				print(x,y,z)
+				table.insert(tab, {x, y, z, saver.cache[x][y][z]})
+				stead.busy(true);
 			end;
 		end;
 --		print (#tab)
@@ -639,7 +611,7 @@ end
 readiter = function(h, size)
 	return function()
 		return h:read(size) 
-		end;
+	end;
 end;
 
 -- copy_file -- угадай, что делает!
