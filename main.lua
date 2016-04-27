@@ -1,12 +1,22 @@
 -- $Name: ProjectZ$
 -- $Version: 0.1$
 -- $Author: Очинский Валерий$
-instead_version "2.3.0"
+instead_version "2.4.1"
 require 'dbg'
 dofile 'lib/saver.lua'
 require 'lib/actway'
 require 'lib/funclink'
 require 'timer'
+finpath = instead_savepath();
+finalizers = require 'lib/finalizers'
+finalizers.create('Remove files', function()
+	source_files = table.find(listdir(finpath), 'tmp_world_');
+--	print(finpath)
+--	print(#source_files)
+	for k,filename in ipairs(source_files) do
+		os.remove(finpath..'/'..filename)
+	end;
+end);
 start = {}
 global {x = 0, y = 0, z = 0};
 --start_game = function()

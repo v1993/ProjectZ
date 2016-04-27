@@ -209,7 +209,7 @@ saver = obj {
 --		xt, yt, zt = tostring(x), tostring(y), tostring(z)
 		local hr = stead.io.open(world_file_name, "r");
 		local tables={};
-		local curtext='';
+		local curtab={};
 		local readernum = 1;
 		local copy=false;
 		local tab = {...};
@@ -235,12 +235,12 @@ saver = obj {
 				copy='next';
 			elseif closeif then
 				copy = false;
-				tables[readernum]=curtext;
-				curtext = ''
+				tables[readernum]=table.concat(curtab);
+				curtab = {}
 --				print('Table '..readernum..' read!')
 			end;
 			if copy == true then
-				curtext = (curtext..line..'\n');
+				curtab[#curtab+1]=(line..'\n')
 			end;
 			stead.busy(true);
 		end;
@@ -425,8 +425,9 @@ saver = obj {
 	end;
 };
 
-stead.savemembers = function(h, s, name, need)
+stead.savemembers = function(h, s, name, need, new)
 --	local need = true
+	local new = new
 	local neednam = true
 	local k,v
 	if isObject(s) and need then
@@ -453,100 +454,112 @@ stead.savemembers = function(h, s, name, need)
 				return
 			end;
 			if stead.type(k) == 'string' then
-				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need or need2);
+				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need or need2, new);
 			elseif stead.type(k) == 'number' then
-				stead.savevar(h, v, name.."["..k.."]", need or need2)
+				stead.savevar(h, v, name.."["..k.."]", need or need2, new)
 			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
-				stead.savevar(h, v, name.."["..k.key_name.."]", need or need2)
+				stead.savevar(h, v, name.."["..k.key_name.."]", need or need2, new)
 			end
+			new = false
 		end
 	end
 end
 
-stead.savevar = function(h, v, n, need)
-	local r,f
-	
+savevarcreate = function()
+	local savedfunctions = {};
+	return function(h, v, n, need, new)
+		local r,f
+		if new then
+			savedfunctions = {}
+		end
 --	if string.find(n,'trig') ~= nil then
 --		print('Saving')
 --	end;
 --	print(h,v,n,need);
-	if v == nil or stead.type(v) == "userdata" or
-			 stead.type(v) == "function" then
-		if isCode(v) and need then
-			if stead.type(stead.functions[v].key_name) == 'string' 
-				and stead.functions[v].key_name ~= n then
-				h:write(stead.string.format("%s=%s\n", n, stead.functions[v].key_name))
-			else
-				h:write(stead.string.format("%s=code %q\n", n, stead.functions[v].code))
+		if v == nil or stead.type(v) == "userdata" or
+				stead.type(v) == "function" then
+			if isCode(v) and need then
+				if stead.type(stead.functions[v].key_name) == 'string' 
+					and stead.functions[v].key_name ~= n then
+					h:write(stead.string.format("%s=%s\n", n, stead.functions[v].key_name))
+				else
+					h:write(stead.string.format("%s=code %q\n", n, stead.functions[v].code))
+				end
+			elseif stead.type(v) == "function" and need then
+				if savedfunctions[v] then
+					h:write(string.format('%s=%s\n', n, savedfunctions[v]));
+				else
+					h:write(string.format('%s=stead.eval(%q)\n', n, string.dump(v)));
+					savedfunctions[v] = n
+				end;
 			end
-		elseif stead.type(v) == "function" and need then
---			print(n);
-			h:write(string.format('%s=stead.eval(%q)\n', n, string.dump(v)))
-		end
 --		if need then
 --			error ("Variable "..n.." can not be saved!");
 --		end 
-		return
-	end
+			return
+		end
 
 --	if stead.string.find(n, '_') ==  1 or stead.string.match(n,'^%u') then
 --		need = true;
 --	end
 
-	if stead.type(v) == "string" then
-		if not need then 
-			return
-		end
-		h:write(stead.string.format("%s=%q\n",n,v))
-		return;
-	end
- 	
-	if stead.type(v) == "table" then
-		if v == _G then return end
-		if stead.type(v.key_name) == 'string' and v.key_name ~= n then -- just xref
-			if v.auto_allocated and not v.auto_saved then
-				v:save(v.key_name, h, false, true); -- here todo
+		if stead.type(v) == "string" then
+			if not need then 
+				return
 			end
-			if need then
-				if stead.ref(v.key_name) == nil then
-					v.key_name = 'null'
-				end
-				h:write(stead.string.format("%s = %s\n", n, v.key_name));
-			end
-			return
-		end
-		if v.__visited__ ~= nil then
-			return
-		end
-
-		v.__visited__ = n;
-
-		if stead.type(v.save) == 'function' then
-			v:save(n, h, need);
+			h:write(stead.string.format("%s=%q\n",n,v))
 			return;
 		end
+ 	
+		if stead.type(v) == "table" then
+			if v == _G then return end
+			if stead.type(v.key_name) == 'string' and v.key_name ~= n then -- just xref
+				if v.auto_allocated and not v.auto_saved then
+					v:save(v.key_name, h, false, true); -- here todo
+				end
+				if need then
+					if stead.ref(v.key_name) == nil then
+						v.key_name = 'null'
+					end
+					h:write(stead.string.format("%s = %s\n", n, v.key_name));
+				end
+				return
+			end
+			if v.__visited__ ~= nil then
+				return
+			end
 
-		if need then
-			h:write(n.." = {};\n");
+			v.__visited__ = n;
+
+			if stead.type(v.save) == 'function' then
+				v:save(n, h, need);
+				return;
+			end
+
+			if need then
+				h:write(n.." = {};\n");
+			end
+
+			stead.savemembers(h, v, n, need);
+			return;
 		end
-
-		stead.savemembers(h, v, n, need);
-		return;
-	end
 --	if string.find(n, 'trig') ~= nil then
 --		print('Saving')
 --	end;
 
-	if not need then
-		return
-	end
+		if not need then
+			return
+		end
 	
 --	if string.find(n, 'trig') ~= nil then
 --		print('Saving2')
 --	end;
-	h:write(n, " = ",tostring(v))
-	h:write("\n") 
+		h:write(n, " = ",tostring(v))
+		h:write("\n") 
+	end
 end
+
+stead.savevar = savevarcreate()
 
 -- Более удобный интерфейс, каскад метатаблиц
 
@@ -688,7 +701,7 @@ stead.game_save = function(self, name, file)
 	local h;
 	if file ~= nil then
 		file:write(stead.string.format("%s.pl = %q\n", name, stead.deref(self.pl)));
-		stead.savemembers(file, self, name, false);
+		stead.savemembers(file, self, name, false, true);
 		return nil, true
 	end
 
@@ -710,11 +723,12 @@ stead.game_save = function(self, name, file)
 	if stead.type(n) == 'string' and n ~= "" then
 		h:write("-- $Name: "..n:gsub("\n","\\n").."$\n");
 	end
+	stead.savevar(setmetatable({}, {__index = function() return function() end end}), '', '', false, true) -- Стереть функции
 	stead.do_savegame(self, h);
 	h:flush();
 	h:close();
 	if name ~= game then
-	world_save(name) -- Занимается копированием файлов
+		world_save(name) -- Занимается копированием файлов
 	end;
 	game.autosave = false; -- we have only one try for autosave
 	game.restart_game = false
@@ -742,3 +756,29 @@ stead.game_load = function(self, name)
 	return nil, false
 end
 game.load = stead.game_load
+
+stead.do_savegame = function(s, h)
+	stead.busy(true)
+	local function save_object(key, value, h)
+		stead.busy(true)
+		stead.savevar(h, value, key, false);
+	end
+	local function save_var(key, value, h)
+		stead.busy(true)
+		stead.savevar(h, value, key, isForSave(key, value, _G))
+	end
+	local forget = game.scriptsforget
+	local i,v
+	for i,v in stead.ipairs(s._scripts) do
+		h:write(stead.string.format("stead.gamereset(%q,%s)\n", 
+			v, stead.tostr(forget)))
+		forget = nil
+	end
+	save_object('allocator', allocator, h); -- always first!
+	for_each_object(save_object, h);
+	save_object('game', s, h);
+	for_everything(save_var, h);
+--	save_object('_G', _G, h);
+	stead.clearvar(_G);
+	stead.busy(false)
+end
