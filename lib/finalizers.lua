@@ -7,6 +7,7 @@ return {
 		finaltab[nam] = tab
 	end;
 	delete = function(nam)
+		setmetatable(finaltab[nam], {}) -- ВАЖНО: отк. финализатор
 		finaltab[nam] = nil
 	end
 }

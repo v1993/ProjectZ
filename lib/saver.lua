@@ -23,14 +23,6 @@ change_world = function(world)
 	s:cache_fill();
 end;
 
-stead.list_save = function(self, name, h, need)
---	if self.__modifyed__ or self.__modified__ then -- compat
-		h:write(name.." = list({});\n");
-		need = true;
---	end
-	stead.savemembers(h, self, name, need);
-end
-
 table.contains = function(tab, val, isarg)
 	if isarg then
 		for i=1, tab.n do
@@ -176,7 +168,10 @@ saver = obj {
 			return stead.unpack(tables)
 		end;
 		for line in hr:lines() do
-			local openif, opennum = table.contains(openers, line);
+			local openif, opennum
+			if string.sub(line, 1, 2) == '--' then
+				openif, opennum = table.contains(openers, line);
+			end
 			if openif then
 				tables[opennum]=true;
 			end
@@ -196,6 +191,7 @@ saver = obj {
 			if tfunc == '' or tfunc == nil then
 				table.insert(empty, inp[i])
 			else
+--				print(inp[i][1], inp[i][2], inp[i][3])
 --				print(tfunc)
 				local func = stead.eval(tfunc);
 				func()
@@ -225,8 +221,11 @@ saver = obj {
 		end;
 --		print 'Reading!'
 		for line in hr:lines() do
-			local openif, opennum = table.contains(openers, line);
-			local closeif, closenum = table.contains(closers, line);
+			local openif, opennum, closeif, closenum
+			if string.sub(line, 1, 2) == '--' then
+				openif, opennum = table.contains(openers, line);
+				closeif, closenum = table.contains(closers, line);
+			end
 			if copy == 'next' then
 				copy = true;
 			end;
@@ -264,8 +263,10 @@ saver = obj {
 			stead.busy(true);
 		end;
 		for line in hr:lines() do
-			local openif, opennum = table.contains(openers, line);
-			local closeif, closenum = table.contains(openers, line);
+			if string.sub(line, 1, 2) == '--' then
+				local openif, opennum = table.contains(openers, line);
+				local closeif, closenum = table.contains(openers, line);
+			end
 			if copy == 'next' then
 				copy = true;
 			end;
@@ -308,10 +309,11 @@ saver = obj {
 		end;
 		local h = io.open(world_file_name, 'a')
 		for k,v in pairs (tabs) do
+			local savefunc = savevarcreate(true)
 			h:write(string.format('-- <room %s.%s.%s', v[1], v[2], v[3]), '\n');
 			h:write(string.format('if saver.cache[%s] == nil then saver.cache[%s]={} end;', v[1], v[1]), '\n')
 			h:write(string.format('if saver.cache[%s][%s] == nil then saver.cache[%s][%s]={} end;', v[1], v[2], v[1], v[2]), '\n')
-			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true);
+			stead.savemembers(h, v[4], string.format('saver.cache[%s][%s][%s]', v[1], v[2], v[3]), true, savefunc);
 			h:write(string.format('-- room %s.%s.%s>', v[1], v[2], v[3]), '\n');
 			stead.busy(true);
 		end;
@@ -425,9 +427,10 @@ saver = obj {
 	end;
 };
 
-stead.savemembers = function(h, s, name, need, new)
+stead.savemembers = function(h, s, name, need, func)
 --	local need = true
-	local new = new
+--	local new = new
+	local func = func or stead.savevar
 	local neednam = true
 	local k,v
 	if isObject(s) and need then
@@ -454,24 +457,24 @@ stead.savemembers = function(h, s, name, need, new)
 				return
 			end;
 			if stead.type(k) == 'string' then
-				stead.savevar(h, v, name..'['..stead.string.format("%q",k)..']', need or need2, new);
+				func(h, v, name..'['..stead.string.format("%q",k)..']', need or need2, func);
 			elseif stead.type(k) == 'number' then
-				stead.savevar(h, v, name.."["..k.."]", need or need2, new)
+				func(h, v, name.."["..k.."]", need or need2, func)
 			elseif stead.type(k) == 'table' and stead.type(k.key_name) == 'string' then
-				stead.savevar(h, v, name.."["..k.key_name.."]", need or need2, new)
+				func(h, v, name.."["..k.key_name.."]", need or need2, func)
 			end
-			new = false
 		end
 	end
 end
 
-savevarcreate = function()
+savevarcreate = function(optimiz)
 	local savedfunctions = {};
-	return function(h, v, n, need, new)
+	local savedtabs = {};
+	local optimiz = optimiz
+--	print('It is opts' ,optimiz)
+	return function(h, v, n, need, me)
+--		print(optimiz)
 		local r,f
-		if new then
-			savedfunctions = {}
-		end
 --	if string.find(n,'trig') ~= nil then
 --		print('Saving')
 --	end;
@@ -490,7 +493,11 @@ savevarcreate = function()
 					h:write(string.format('%s=%s\n', n, savedfunctions[v]));
 				else
 					h:write(string.format('%s=stead.eval(%q)\n', n, string.dump(v)));
-					savedfunctions[v] = n
+--					print('It is opts2' ,optimiz)
+					if optimiz then
+--						print(v,n)
+						savedfunctions[v] = n
+					end
 				end;
 			end
 --		if need then
@@ -513,9 +520,13 @@ savevarcreate = function()
  	
 		if stead.type(v) == "table" then
 			if v == _G then return end
+			if savedtabs[v] then
+				h:write(stead.string.format("%s = %s\n", n, savedtabs[v]));
+				return
+			end
 			if stead.type(v.key_name) == 'string' and v.key_name ~= n then -- just xref
 				if v.auto_allocated and not v.auto_saved then
-					v:save(v.key_name, h, false, true); -- here todo
+					v:save(v.key_name, h, false, true, me); -- here todo
 				end
 				if need then
 					if stead.ref(v.key_name) == nil then
@@ -530,17 +541,18 @@ savevarcreate = function()
 			end
 
 			v.__visited__ = n;
-
+			
 			if stead.type(v.save) == 'function' then
-				v:save(n, h, need);
+--				print(n)
+				v:save(n, h, need, me);
 				return;
 			end
 
 			if need then
 				h:write(n.." = {};\n");
 			end
-
-			stead.savemembers(h, v, n, need);
+			savedtabs[v] = n
+			stead.savemembers(h, v, n, need, me);
 			return;
 		end
 --	if string.find(n, 'trig') ~= nil then
@@ -558,9 +570,9 @@ savevarcreate = function()
 		h:write("\n") 
 	end
 end
-
+--stead.savevar2 = savevarcreate()
+--stead.savevar = function(...) ; print('Calling stead.savevar: ', ...);print(debug.traceback()); stead.savevar2(...) end
 stead.savevar = savevarcreate()
-
 -- Более удобный интерфейс, каскад метатаблиц
 
 world = setmetatable({}, {
@@ -699,9 +711,10 @@ end
 
 stead.game_save = function(self, name, file) 
 	local h;
+	local func = savevarcreate(true)
 	if file ~= nil then
 		file:write(stead.string.format("%s.pl = %q\n", name, stead.deref(self.pl)));
-		stead.savemembers(file, self, name, false, true);
+		stead.savemembers(file, self, name, false, func);
 		return nil, true
 	end
 
@@ -723,11 +736,11 @@ stead.game_save = function(self, name, file)
 	if stead.type(n) == 'string' and n ~= "" then
 		h:write("-- $Name: "..n:gsub("\n","\\n").."$\n");
 	end
-	stead.savevar(setmetatable({}, {__index = function() return function() end end}), '', '', false, true) -- Стереть функции
-	stead.do_savegame(self, h);
+--	stead.savevar(setmetatable({}, {__index = function() return function() end end}), '', '', false, true) -- Стереть функции
+	stead.do_savegame(self, h, func);
 	h:flush();
 	h:close();
-	if name ~= game then
+	if name ~= 'game' then
 		world_save(name) -- Занимается копированием файлов
 	end;
 	game.autosave = false; -- we have only one try for autosave
@@ -757,15 +770,17 @@ stead.game_load = function(self, name)
 end
 game.load = stead.game_load
 
-stead.do_savegame = function(s, h)
+stead.do_savegame = function(s, h, func)
 	stead.busy(true)
+	local func = func or savevarcreate(true)
 	local function save_object(key, value, h)
 		stead.busy(true)
-		stead.savevar(h, value, key, false);
+--		print(func)
+		func(h, value, key, false, func);
 	end
 	local function save_var(key, value, h)
 		stead.busy(true)
-		stead.savevar(h, value, key, isForSave(key, value, _G))
+		func(h, value, key, isForSave(key, value, _G), func)
 	end
 	local forget = game.scriptsforget
 	local i,v

@@ -2,6 +2,7 @@
 -- $Version: 0.1$
 -- $Author: Очинский Валерий$
 instead_version "2.4.1"
+dofile 'lib/savefix.lua'
 require 'dbg'
 dofile 'lib/saver.lua'
 require 'lib/actway'
@@ -17,7 +18,20 @@ finalizers.create('Remove files', function()
 		os.remove(finpath..'/'..filename)
 	end;
 end);
-start = {}
+table.print = function(tab, rec, pref, basepref)
+	local pref = pref or ''
+	local basepref = basepref or '	'
+	for k,v in pairs(tab) do
+		if not rec or type(v) ~= 'table' then
+			print(pref..tostring(k),v)
+		else
+			print(pref..tostring(k)..' ->')
+			table.print(v, rec, pref..basepref, basepref)
+		end;
+	end;
+end;
+
+init = function() take (wayd) end
 global {x = 0, y = 0, z = 0};
 --start_game = function()
 --	cron:start()
@@ -25,9 +39,7 @@ global {x = 0, y = 0, z = 0};
 wayd = menu {
 	nam = 'Дамп путей в терминал';
 	menu = function(s)
-		for k,v in pairs(here().way) do
-			print(k,v)
-		end;
+		table.print(ways(), true)
 	end;
 };
 
@@ -35,11 +47,6 @@ main = room {
 	nam = 'Давай!';
 	obj = {obj {nam = 'ok', dsc = '{Начать игру!}', act = code [[return start_game()]]}};
 };
-
-stead.room_save = function(self, name, h, need)
-	local dsc;
-	stead.savemembers(h, self, name, need);
-end
 
 trigger = function()
 	local v = {};
@@ -55,15 +62,10 @@ trigger = function()
 	return v
 end;
 
-stead.obj_save = function(self, name, h, need)
-	local dsc;
-	stead.savemembers(h, self, name, need);
-end
-
 start_game = function()
-	x = start.x;
-	y = start.y;
-	z = start.z;
+	x = startset.x;
+	y = startset.y;
+	z = startset.z;
 	lifeon(walker);
 	walk(world[x][y][z])
 end;
@@ -75,13 +77,13 @@ walker = obj {
 	life = code [[syncwalk(); return true,true]];
 };
 
-start = {};
+startset = {};
 
 -- Это пишет разработчик...
-start.world = 'overworld' -- Игрок заспавнится в этом мире
-start.x = 0 -- Стартовые коардинаты
-start.y = 0
-start.z = 60
+startset.world = 'overworld' -- Игрок заспавнится в этом мире
+startset.x = 0 -- Стартовые коардинаты
+startset.y = 0
+startset.z = 60
 -- test
 
 testgen = obj {nam = 'testgen'};
@@ -101,3 +103,4 @@ testgen.new = function(s, x, y, z)
 --	print(x,y,z)
 	return v
 end;
+--debug.sethook(function() table.print(debug.getinfo(2)) end, 'r')
